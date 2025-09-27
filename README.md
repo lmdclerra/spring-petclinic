@@ -1,165 +1,273 @@
-# Spring PetClinic Sample Application [![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml)[![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml)
 
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/spring-projects/spring-petclinic) [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=7517918)
+---
 
-## Understanding the Spring Petclinic application with a few diagrams
+# Spring PetClinic — Security Milestone 2 (IAS2)
 
-[See the presentation here](https://speakerdeck.com/michaelisvy/spring-petclinic-sample-application)
+This document summarizes the security hardening we implemented for Spring PetClinic and how to **run**, **log in**, and **verify** the controls locally.
 
-## Run Petclinic locally
+---
 
-Spring Petclinic is a [Spring Boot](https://spring.io/guides/gs/spring-boot) application built using [Maven](https://spring.io/guides/gs/maven/) or [Gradle](https://spring.io/guides/gs/gradle/). You can build a jar file and run it from the command line (it should work just as well with Java 17 or newer):
+## What we implemented (5 controls)
 
-```bash
-git clone https://github.com/spring-projects/spring-petclinic.git
-cd spring-petclinic
-.\mvnw package
-java -jar target\spring-petclinic-3.5.0-SNAPSHOT.jar
+1. **Spring Security core (auth, CSRF, headers)**
+
+* Added `spring-boot-starter-security` and enabled standard security filter chain.
+* Default secure headers + CSRF enabled.
+
+2. **Role-Based Access Control (RBAC) + secure UI**
+
+* In-memory users for demo/testing (`admin` and `user`).
+* Thymeleaf Security Extras to show/hide menu items and action links based on role.
+
+3. **CSRF tokens on forms**
+
+* Forms that use `th:action` get tokens automatically.
+* Any plain forms include hidden CSRF token.
+
+4. **H2 Console restriction**
+
+* **Production**: H2 console disabled.
+* **Dev profile**: H2 console enabled at `/h2-console`, local only.
+
+5. **Global exception handling (no stack traces to users)**
+
+* `@ControllerAdvice` returns a friendly error page and logs full details server-side.
+
+---
+
+## Prerequisites
+
+* **Java 17+** (check with `java -version`)
+* **Maven Wrapper** included (`mvnw`/`./mvnw`) — no need to install Maven separately
+* Port **8080** must be free
+
+> If your folder is inside **OneDrive**, Windows can lock `target/`. If a build fails to delete `target/`, close running apps, or run:
+> `rmdir /s /q target` (Windows) / `rm -rf target` (macOS/Linux)
+
+---
+
+## Build the app
+
+### Windows (CMD/PowerShell)
+
+```bat
+.\mvnw clean package -DskipTests
 ```
 
-(On Windows, or if your shell doesn't expand the glob, you might need to specify the JAR file name explicitly on the command line at the end there.)
+### macOS/Linux
 
-You can then access the Petclinic at <http://localhost:8080/>.
+```bash
+./mvnw clean package -DskipTests
+```
 
-<img width="1042" alt="petclinic-screenshot" src="https://cloud.githubusercontent.com/assets/838318/19727082/2aee6d6c-9b8e-11e6-81fe-e889a5ddfded.png">
+If you see a **formatting** failure from `spring-javaformat`, you can auto-fix:
 
-Or you can run it from Maven directly using the Spring Boot Maven plugin. If you do this, it will pick up changes that you make in the project immediately (changes to Java source files require a compile as well - most people use an IDE for this):
+```bash
+./mvnw spring-javaformat:apply
+```
+
+(then build again)
+
+---
+
+## Run the app
+
+### Option A — “Production-like” (default profile, H2 console disabled)
+
+Windows:
+
+```bat
+.\mvnw spring-boot:run
+```
+
+macOS/Linux:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-> NOTE: If you prefer to use Gradle, you can build the app using `./gradlew build` and look for the jar file in `build/libs`.
+Open: **[http://localhost:8080](http://localhost:8080)**
 
-## Building a Container
+### Option B — Development profile (H2 console enabled)
 
-There is no `Dockerfile` in this project. You can build a container image (if you have a docker daemon) using the Spring Boot build plugin:
+We added `src/main/resources/application-dev.properties`:
 
-```bash
-./mvnw spring-boot:build-image
+```properties
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+spring.h2.console.settings.web-allow-others=false
+management.endpoints.web.exposure.include=health,info,env,beans
 ```
 
-## In case you find a bug/suggested improvement for Spring Petclinic
+Run with the **dev** profile:
 
-Our issue tracker is available [here](https://github.com/spring-projects/spring-petclinic/issues).
+Windows:
 
-## Database configuration
-
-In its default configuration, Petclinic uses an in-memory database (H2) which
-gets populated at startup with data. The h2 console is exposed at `http://localhost:8080/h2-console`,
-and it is possible to inspect the content of the database using the `jdbc:h2:mem:<uuid>` URL. The UUID is printed at startup to the console.
-
-A similar setup is provided for MySQL and PostgreSQL if a persistent database configuration is needed. Note that whenever the database type changes, the app needs to run with a different profile: `spring.profiles.active=mysql` for MySQL or `spring.profiles.active=postgres` for PostgreSQL. See the [Spring Boot documentation](https://docs.spring.io/spring-boot/how-to/properties-and-configuration.html#howto.properties-and-configuration.set-active-spring-profiles) for more detail on how to set the active profile.
-
-You can start MySQL or PostgreSQL locally with whatever installer works for your OS or use docker:
-
-```bash
-docker run -e MYSQL_USER=petclinic -e MYSQL_PASSWORD=petclinic -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=petclinic -p 3306:3306 mysql:9.2
+```bat
+.\mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-or
+macOS/Linux:
 
 ```bash
-docker run -e POSTGRES_USER=petclinic -e POSTGRES_PASSWORD=petclinic -e POSTGRES_DB=petclinic -p 5432:5432 postgres:17.5
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-Further documentation is provided for [MySQL](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources/db/mysql/petclinic_db_setup_mysql.txt)
-and [PostgreSQL](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources/db/postgres/petclinic_db_setup_postgres.txt).
+Open:
 
-Instead of vanilla `docker` you can also use the provided `docker-compose.yml` file to start the database containers. Each one has a service named after the Spring profile:
+* App: **[http://localhost:8080](http://localhost:8080)**
+* H2 Console (dev only): **[http://localhost:8080/h2-console](http://localhost:8080/h2-console)**
 
-```bash
-docker compose up mysql
-```
+**H2 Console settings (dev):**
 
-or
+* **JDBC URL:** `jdbc:h2:mem:testdb`
+* **User:** `sa`
+* **Password:** *(leave blank)*
 
-```bash
-docker compose up postgres
-```
+> In **default** mode (no profile), the H2 console is **disabled** for security.
 
-## Test Applications
+---
 
-At development time we recommend you use the test applications set up as `main()` methods in `PetClinicIntegrationTests` (using the default H2 database and also adding Spring Boot Devtools), `MySqlTestApplication` and `PostgresIntegrationTests`. These are set up so that you can run the apps in your IDE to get fast feedback and also run the same classes as integration tests against the respective database. The MySql integration tests use Testcontainers to start the database in a Docker container, and the Postgres tests use Docker Compose to do the same thing.
+## Sign in (demo credentials)
 
-## Compiling the CSS
+We configured **in-memory users** in `SecurityConfig` for testing:
 
-There is a `petclinic.css` in `src/main/resources/static/resources/css`. It was generated from the `petclinic.scss` source, combined with the [Bootstrap](https://getbootstrap.com/) library. If you make changes to the `scss`, or upgrade Bootstrap, you will need to re-compile the CSS resources using the Maven profile "css", i.e. `./mvnw package -P css`. There is no build profile for Gradle to compile the CSS.
+* **Admin**
 
-## Working with Petclinic in your IDE
+  * **Username:** `admin`
+  * **Password:** `admin`
+  * **Role:** `ADMIN`
 
-### Prerequisites
+* **Standard user**
 
-The following items should be installed in your system:
+  * **Username:** `user`
+  * **Password:** `user`
+  * **Role:** `USER`
 
-- Java 17 or newer (full JDK, not a JRE)
-- [Git command line tool](https://help.github.com/articles/set-up-git)
-- Your preferred IDE
-  - Eclipse with the m2e plugin. Note: when m2e is available, there is an m2 icon in `Help -> About` dialog. If m2e is
-  not there, follow the install process [here](https://www.eclipse.org/m2e/)
-  - [Spring Tools Suite](https://spring.io/tools) (STS)
-  - [IntelliJ IDEA](https://www.jetbrains.com/idea/)
-  - [VS Code](https://code.visualstudio.com)
+**What each role can see/do (UI examples):**
 
-### Steps
+* **Both** can access Home and Vets pages.
+* **Authenticated (`USER` or `ADMIN`)** can use Owners → Find Owners and typical CRUD workflows.
+* **Admin-only** items (e.g., dev links like Error demo, H2 Console menu item) are shown only to `ADMIN`.
 
-1. On the command line run:
+> If you changed these in your `SecurityConfig`, use your own values.
+> Also, when you later enable HTTPS, set the session cookie `secure` flag.
 
-    ```bash
-    git clone https://github.com/spring-projects/spring-petclinic.git
+---
+
+## How to log out
+
+Click **Logout** in the navbar.
+If your browser seems to “stay logged in,” do a hard refresh (`Ctrl+Shift+R`) or open a new private window. With CSRF enabled, Spring Security hits `/logout` via POST under the hood—Thymeleaf/Security handles this for the link.
+
+---
+
+## Where we changed things (high level)
+
+* **`pom.xml`**
+
+  * Added:
+
+    ```xml
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.thymeleaf.extras</groupId>
+      <artifactId>thymeleaf-extras-springsecurity6</artifactId>
+    </dependency>
     ```
 
-1. Inside Eclipse or STS:
+* **`src/main/java/.../config/SecurityConfig.java`**
 
-    Open the project via `File -> Import -> Maven -> Existing Maven project`, then select the root directory of the cloned repo.
+  * Defines the security filter chain, login, logout, CSRF (enabled), headers, and **in-memory users** (`admin/admin`, `user/user`).
 
-    Then either build on the command line `./mvnw generate-resources` or use the Eclipse launcher (right-click on project and `Run As -> Maven install`) to generate the CSS. Run the application's main method by right-clicking on it and choosing `Run As -> Java Application`.
+* **`src/main/resources/templates/fragments/layout.html`**
 
-1. Inside IntelliJ IDEA:
+  * Added `xmlns:sec="https://www.thymeleaf.org/extras/spring-security"`
+  * Wrapped menu items with `sec:authorize="isAuthenticated()"` or `hasRole('ADMIN')`
+  * Added Login/Logout conditional links and “Signed in as …” display.
 
-    In the main menu, choose `File -> Open` and select the Petclinic [pom.xml](pom.xml). Click on the `Open` button.
+* **Forms** (e.g., Owners/Pets/Visits)
 
-    - CSS files are generated from the Maven build. You can build them on the command line `./mvnw generate-resources` or right-click on the `spring-petclinic` project then `Maven -> Generates sources and Update Folders`.
+  * Most PetClinic forms already use `th:action` (CSRF auto-included).
+  * Any plain `<form>` (without `th:action`) includes:
 
-    - A run configuration named `PetClinicApplication` should have been created for you if you're using a recent Ultimate version. Otherwise, run the application by right-clicking on the `PetClinicApplication` main class and choosing `Run 'PetClinicApplication'`.
+    ```html
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    ```
 
-1. Navigate to the Petclinic
+* **`application.properties`**
 
-    Visit [http://localhost:8080](http://localhost:8080) in your browser.
+  * Production stance:
 
-## Looking for something in particular?
+    ```properties
+    spring.h2.console.enabled=false
+    server.servlet.session.timeout=15m
+    server.servlet.session.cookie.http-only=true
+    # server.servlet.session.cookie.secure=true   # enable when using HTTPS
+    ```
 
-|Spring Boot Configuration | Class or Java property files  |
-|--------------------------|---|
-|The Main Class | [PetClinicApplication](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/java/org/springframework/samples/petclinic/PetClinicApplication.java) |
-|Properties Files | [application.properties](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources) |
-|Caching | [CacheConfiguration](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/java/org/springframework/samples/petclinic/system/CacheConfiguration.java) |
+* **`application-dev.properties`** (dev only)
 
-## Interesting Spring Petclinic branches and forks
+  * Enables H2 console locally (see above).
 
-The Spring Petclinic "main" branch in the [spring-projects](https://github.com/spring-projects/spring-petclinic)
-GitHub org is the "canonical" implementation based on Spring Boot and Thymeleaf. There are
-[quite a few forks](https://spring-petclinic.github.io/docs/forks.html) in the GitHub org
-[spring-petclinic](https://github.com/spring-petclinic). If you are interested in using a different technology stack to implement the Pet Clinic, please join the community there.
+* **`GlobalExceptionHandler.java`**
 
-## Interaction with other open-source projects
+  * `@ControllerAdvice` to log full stack traces internally and show a **generic** error page to users.
 
-One of the best parts about working on the Spring Petclinic application is that we have the opportunity to work in direct contact with many Open Source projects. We found bugs/suggested improvements on various topics such as Spring, Spring Data, Bean Validation and even Eclipse! In many cases, they've been fixed/implemented in just a few days.
-Here is a list of them:
+---
 
-| Name | Issue |
-|------|-------|
-| Spring JDBC: simplify usage of NamedParameterJdbcTemplate | [SPR-10256](https://github.com/spring-projects/spring-framework/issues/14889) and [SPR-10257](https://github.com/spring-projects/spring-framework/issues/14890) |
-| Bean Validation / Hibernate Validator: simplify Maven dependencies and backward compatibility |[HV-790](https://hibernate.atlassian.net/browse/HV-790) and [HV-792](https://hibernate.atlassian.net/browse/HV-792) |
-| Spring Data: provide more flexibility when working with JPQL queries | [DATAJPA-292](https://github.com/spring-projects/spring-data-jpa/issues/704) |
+## Quick test checklist
 
-## Contributing
+* **Auth required**: Visit `/owners/find` while logged out → redirected to login.
+* **Login works**: Use `admin/admin` or `user/user`.
+* **RBAC works**: As `user`, admin-only links are hidden; as `admin`, they appear.
+* **CSRF works**: Submitting a form without a token should fail (dev test).
+* **H2 Console**: Available only in **dev** profile; otherwise disabled.
+* **Error page**: Visit `/oups` → friendly message, no stack trace in browser (but logged in console).
 
-The [issue tracker](https://github.com/spring-projects/spring-petclinic/issues) is the preferred channel for bug reports, feature requests and submitting pull requests.
+---
 
-For pull requests, editor preferences are available in the [editor config](.editorconfig) for easy use in common text editors. Read more and download plugins at <https://editorconfig.org>. All commits must include a __Signed-off-by__ trailer at the end of each commit message to indicate that the contributor agrees to the Developer Certificate of Origin.
-For additional details, please refer to the blog post [Hello DCO, Goodbye CLA: Simplifying Contributions to Spring](https://spring.io/blog/2025/01/06/hello-dco-goodbye-cla-simplifying-contributions-to-spring).
+## Why these changes
 
-## License
+These directly address audit results (OWASP ZAP + manual tests):
 
-The Spring PetClinic sample application is released under version 2.0 of the [Apache License](https://www.apache.org/licenses/LICENSE-2.0).
+* Missing/weak headers → fixed by Spring Security defaults.
+* No CSRF protection → CSRF enabled and verified on forms.
+* Overexposed dev endpoints → H2 console disabled by default, dev-only when needed.
+* Error stack traces → hidden from users, logged server-side.
+* Unauthenticated access/weak UI controls → RBAC and conditional UI rendering.
+
+---
+
+## Troubleshooting
+
+* **Windows build fails to delete `target/`**
+  Close the app and run:
+
+  ```bat
+  rmdir /s /q target
+  ```
+
+  Then build again:
+
+  ```bat
+  .\mvnw clean package -DskipTests
+  ```
+
+* **Login loop**
+  Clear cookies or try a private window; ensure `SecurityConfig` actually defines the in-memory users you’re using.
+
+* **H2 console 404/“error page”**
+  Use the **dev profile** to enable it:
+
+  ```bat
+  .\mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+  ```
+
+  Then open **[http://localhost:8080/h2-console](http://localhost:8080/h2-console)**.
+
+---
+

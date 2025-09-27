@@ -13,8 +13,8 @@ Spring Petclinic is a [Spring Boot](https://spring.io/guides/gs/spring-boot) app
 ```bash
 git clone https://github.com/spring-projects/spring-petclinic.git
 cd spring-petclinic
-./mvnw package
-java -jar target/*.jar
+.\mvnw package
+java -jar target\spring-petclinic-3.5.0-SNAPSHOT.jar
 ```
 
 (On Windows, or if your shell doesn't expand the glob, you might need to specify the JAR file name explicitly on the command line at the end there.)

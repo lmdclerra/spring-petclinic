@@ -7,46 +7,48 @@ This document summarizes the security hardening we implemented for Spring PetCli
 
 ---
 
-## What we implemented (5 controls)
+## Implemented Security Controls (5)
 
-1. **Spring Security core (auth, CSRF, headers)**
+1. **Spring Security Core (Authentication, CSRF, Headers)**
 
-* Added `spring-boot-starter-security` and enabled standard security filter chain.
-* Default secure headers + CSRF enabled.
+   * Added `spring-boot-starter-security` and enabled the standard Spring Security filter chain.
+   * Default secure headers and CSRF protection are now active.
 
-2. **Role-Based Access Control (RBAC) + secure UI**
+2. **Role-Based Access Control (RBAC) + Secure UI**
 
-* In-memory users for demo/testing (`admin` and `user`).
-* Thymeleaf Security Extras to show/hide menu items and action links based on role.
+   * Configured in-memory users for demo/testing (`admin` and `user`).
+   * Integrated Thymeleaf Security Extras to show/hide menu items and action links based on role.
 
-3. **CSRF tokens on forms**
+3. **CSRF Tokens on Forms**
 
-* Forms that use `th:action` get tokens automatically.
-* Any plain forms include hidden CSRF token.
+   * All forms using `th:action` automatically include CSRF tokens.
+   * Any plain forms were updated to include hidden CSRF token fields.
 
-4. **H2 Console restriction**
+4. **H2 Console Restriction**
 
-* **Production**: H2 console disabled.
-* **Dev profile**: H2 console enabled at `/h2-console`, local only.
+   * **Production**: H2 console is disabled.
+   * **Development profile**: H2 console enabled at `/h2-console` for local use only.
 
-5. **Global exception handling (no stack traces to users)**
+5. **Global Exception Handling**
 
-* `@ControllerAdvice` returns a friendly error page and logs full details server-side.
+   * Implemented `@ControllerAdvice` to log full stack traces internally while showing a friendly error page to end users.
 
 ---
 
 ## Prerequisites
 
 * **Java 17+** (check with `java -version`)
-* **Maven Wrapper** included (`mvnw`/`./mvnw`) — no need to install Maven separately
+* **Maven Wrapper** included (`mvnw` / `./mvnw`) — no need to install Maven separately
 * Port **8080** must be free
 
-> If your folder is inside **OneDrive**, Windows can lock `target/`. If a build fails to delete `target/`, close running apps, or run:
-> `rmdir /s /q target` (Windows) / `rm -rf target` (macOS/Linux)
+> ⚠️ If your project folder is inside **OneDrive**, Windows may lock `target/`. If a build fails to delete `target/`, close running apps or manually remove the folder:
+>
+> * Windows: `rmdir /s /q target`
+> * macOS/Linux: `rm -rf target`
 
 ---
 
-## Build the app
+## Build the Application
 
 ### Windows (CMD/PowerShell)
 
@@ -60,214 +62,182 @@ This document summarizes the security hardening we implemented for Spring PetCli
 ./mvnw clean package -DskipTests
 ```
 
-If you see a **formatting** failure from `spring-javaformat`, you can auto-fix:
+If you encounter a **formatting** failure from `spring-javaformat`, auto-fix with:
 
 ```bash
 ./mvnw spring-javaformat:apply
 ```
 
-(then build again)
+Then rebuild.
 
 ---
 
-## Run the app
+## Run the Application
 
-### Option A — “Production-like” (default profile, H2 console disabled)
-
-Windows:
+### Option A — Run with Maven (Default Profile, Production-like)
 
 ```bat
 .\mvnw spring-boot:run
 ```
 
-macOS/Linux:
-
-```bash
-./mvnw spring-boot:run
-```
-
 Open: **[http://localhost:8080](http://localhost:8080)**
 
-### Option B — Development profile (H2 console enabled)
+---
 
-We added `src/main/resources/application-dev.properties`:
-
-```properties
-spring.h2.console.enabled=true
-spring.h2.console.path=/h2-console
-spring.h2.console.settings.web-allow-others=false
-management.endpoints.web.exposure.include=health,info,env,beans
-```
-
-Run with the **dev** profile:
-
-Windows:
+### Option B — Run with Maven (Development Profile, H2 Enabled)
 
 ```bat
 .\mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-macOS/Linux:
-
-```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-```
-
 Open:
 
-* App: **[http://localhost:8080](http://localhost:8080)**
-* H2 Console (dev only): **[http://localhost:8080/h2-console](http://localhost:8080/h2-console)**
+* App → **[http://localhost:8080](http://localhost:8080)**
+* H2 Console → **[http://localhost:8080/h2-console](http://localhost:8080/h2-console)**
 
-**H2 Console settings (dev):**
+**H2 Console Settings (Dev):**
 
-* **JDBC URL:** `jdbc:h2:mem:testdb`
-* **User:** `sa`
-* **Password:** *(leave blank)*
-
-> In **default** mode (no profile), the H2 console is **disabled** for security.
+* JDBC URL: `jdbc:h2:mem:testdb`
+* User: `sa`
+* Password: *(leave blank)*
 
 ---
 
-## Sign in (demo credentials)
+### Option C — Run with Packaged JAR (Default Profile)
+
+After building (`mvnw clean package`), run:
+
+**Windows:**
+
+```bat
+java -jar target/spring-petclinic-*.jar
+```
+
+**macOS/Linux:**
+
+```bash
+java -jar target/spring-petclinic-*.jar
+```
+
+Open: **[http://localhost:8080](http://localhost:8080)**
+
+---
+
+### Option D — Run with Packaged JAR (Development Profile)
+
+```bat
+java -jar target/spring-petclinic-*.jar --spring.profiles.active=dev
+```
+
+---
+
+## Sign In (Demo Credentials)
 
 We configured **in-memory users** in `SecurityConfig` for testing:
 
 * **Admin**
 
-  * **Username:** `admin`
-  * **Password:** `admin`
-  * **Role:** `ADMIN`
+  * Username: `admin`
+  * Password: `admin123`
+  * Role: `ADMIN`
 
-* **Standard user**
+* **Standard User**
 
-  * **Username:** `user`
-  * **Password:** `user`
-  * **Role:** `USER`
+  * Username: `user`
+  * Password: `user`
+  * Role: `USER`
 
-**What each role can see/do (UI examples):**
+**Role Access (UI examples):**
 
-* **Both** can access Home and Vets pages.
-* **Authenticated (`USER` or `ADMIN`)** can use Owners → Find Owners and typical CRUD workflows.
-* **Admin-only** items (e.g., dev links like Error demo, H2 Console menu item) are shown only to `ADMIN`.
-
-> If you changed these in your `SecurityConfig`, use your own values.
-> Also, when you later enable HTTPS, set the session cookie `secure` flag.
+* **Both roles** → Home and Vets pages
+* **Authenticated (USER or ADMIN)** → Owners CRUD features
+* **Admin-only** → Error demo page, H2 Console link
 
 ---
 
-## How to log out
+## Logging Out
 
 Click **Logout** in the navbar.
-If your browser seems to “stay logged in,” do a hard refresh (`Ctrl+Shift+R`) or open a new private window. With CSRF enabled, Spring Security hits `/logout` via POST under the hood—Thymeleaf/Security handles this for the link.
+If you remain logged in, clear cookies, refresh with **Ctrl+Shift+R**, or use a private window.
 
 ---
 
-## Where we changed things (high level)
+## Key Changes in the Codebase
 
 * **`pom.xml`**
 
-  * Added:
+  * Added Spring Security and Thymeleaf Security Extras dependencies.
 
-    ```xml
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-security</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.thymeleaf.extras</groupId>
-      <artifactId>thymeleaf-extras-springsecurity6</artifactId>
-    </dependency>
-    ```
+* **`SecurityConfig.java`**
 
-* **`src/main/java/.../config/SecurityConfig.java`**
+  * Defined the security filter chain, login, logout, CSRF, headers, and in-memory users.
 
-  * Defines the security filter chain, login, logout, CSRF (enabled), headers, and **in-memory users** (`admin/admin`, `user/user`).
+* **`layout.html`** (UI fragment)
 
-* **`src/main/resources/templates/fragments/layout.html`**
+  * Added `xmlns:sec` namespace.
+  * Wrapped menu items with `sec:authorize`.
+  * Added Login/Logout links and “Signed in as …” display.
 
-  * Added `xmlns:sec="https://www.thymeleaf.org/extras/spring-security"`
-  * Wrapped menu items with `sec:authorize="isAuthenticated()"` or `hasRole('ADMIN')`
-  * Added Login/Logout conditional links and “Signed in as …” display.
+* **Forms** (Owners, Pets, Visits)
 
-* **Forms** (e.g., Owners/Pets/Visits)
+  * Ensured CSRF tokens are included in all forms.
 
-  * Most PetClinic forms already use `th:action` (CSRF auto-included).
-  * Any plain `<form>` (without `th:action`) includes:
+* **`application.properties`** (production settings)
 
-    ```html
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    ```
+  * Disabled H2 console, added session timeout, and hardened cookies.
 
-* **`application.properties`**
+* **`application-dev.properties`**
 
-  * Production stance:
-
-    ```properties
-    spring.h2.console.enabled=false
-    server.servlet.session.timeout=15m
-    server.servlet.session.cookie.http-only=true
-    # server.servlet.session.cookie.secure=true   # enable when using HTTPS
-    ```
-
-* **`application-dev.properties`** (dev only)
-
-  * Enables H2 console locally (see above).
+  * Enabled H2 console locally.
 
 * **`GlobalExceptionHandler.java`**
 
-  * `@ControllerAdvice` to log full stack traces internally and show a **generic** error page to users.
+  * Logs full exceptions while showing a generic error page to users.
 
 ---
 
-## Quick test checklist
+## Quick Test Checklist
 
-* **Auth required**: Visit `/owners/find` while logged out → redirected to login.
-* **Login works**: Use `admin/admin` or `user/user`.
-* **RBAC works**: As `user`, admin-only links are hidden; as `admin`, they appear.
-* **CSRF works**: Submitting a form without a token should fail (dev test).
-* **H2 Console**: Available only in **dev** profile; otherwise disabled.
-* **Error page**: Visit `/oups` → friendly message, no stack trace in browser (but logged in console).
+* [ ] Visit `/owners/find` logged out → redirected to login
+* [ ] Login works (`admin/admin123` or `user/user`)
+* [ ] RBAC works → `user` sees fewer links, `admin` sees all
+* [ ] CSRF works → submitting without token fails
+* [ ] H2 Console → works only in **dev** profile
+* [ ] `/oups` → shows friendly error page, no stack trace in browser
 
 ---
 
-## Why these changes
+## Why These Changes
 
-These directly address audit results (OWASP ZAP + manual tests):
+These address audit findings (OWASP ZAP + manual tests):
 
-* Missing/weak headers → fixed by Spring Security defaults.
-* No CSRF protection → CSRF enabled and verified on forms.
-* Overexposed dev endpoints → H2 console disabled by default, dev-only when needed.
-* Error stack traces → hidden from users, logged server-side.
-* Unauthenticated access/weak UI controls → RBAC and conditional UI rendering.
+* Missing/weak headers → fixed by Spring Security defaults
+* No CSRF protection → enforced CSRF tokens
+* Overexposed dev endpoints → restricted H2 console
+* Error stack traces → hidden from users, logged internally
+* Weak UI controls → enforced RBAC and conditional rendering
 
 ---
 
 ## Troubleshooting
 
-* **Windows build fails to delete `target/`**
-  Close the app and run:
+* **Build fails to delete `target/` (Windows)**
 
-  ```bat
-  rmdir /s /q target
-  ```
+```bat
+rmdir /s /q target
+.\mvnw clean package -DskipTests
+```
 
-  Then build again:
+* **Login loop** → Clear cookies, confirm credentials match `SecurityConfig`.
 
-  ```bat
-  .\mvnw clean package -DskipTests
-  ```
+* **H2 Console shows error** → Run with the **dev profile**:
 
-* **Login loop**
-  Clear cookies or try a private window; ensure `SecurityConfig` actually defines the in-memory users you’re using.
+```bat
+.\mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+```
 
-* **H2 console 404/“error page”**
-  Use the **dev profile** to enable it:
-
-  ```bat
-  .\mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-  ```
-
-  Then open **[http://localhost:8080/h2-console](http://localhost:8080/h2-console)**.
+Then open **[http://localhost:8080/h2-console](http://localhost:8080/h2-console)**
 
 ---
+
 
